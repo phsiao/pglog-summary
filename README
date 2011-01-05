@@ -1,0 +1,5 @@
+
+Goal:
+
+A simple python script that can parse the postgres log and produce a meaningful summary.
+
