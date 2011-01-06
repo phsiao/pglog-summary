@@ -166,8 +166,8 @@ class Aggregate(object):
 
   def add_entry(self, entry):
     if (self.msg <> entry.msg):
-      if not self.msg in self.blacklist:
-        raise ValueError("msg is not equal:\n%s\n%s" % (msg, entry.msg))
+      if not ((self.msg in self.blacklist) or (self.msg.startswith('execute NUM') and entry.msg.startswith('execute '))):
+        raise ValueError("msg is not equal:\n%s\n%s" % (self.msg, entry.msg))
     if self.entries_by_ip.has_key(entry.ip):
       self.entries_by_ip[entry.ip].append(entry)
     else:
@@ -202,6 +202,10 @@ def aggregate(list_of_entries):
        key = 'automatic vacuum of table'
      if entry.msg.startswith('duration: '):
        key = 'slow query'
+     if entry.msg.startswith('execute '):
+       # erase the context
+       idx = entry.msg.find(':')
+       key = 'execute NUM'+entry.msg[idx:]
      if not msgs.has_key(key):
        msgs[key] = Aggregate(key)
      msgs[key].add_entry(entry)
