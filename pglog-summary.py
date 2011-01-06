@@ -157,17 +157,19 @@ def process_log(options, args):
     for val in events:
       print str(val)
 
+aggregate_patterns = [
+  { 'pattern': re.compile('^checkpoint complete:'),        'msg': 'checkpoint complete' },
+  { 'pattern': re.compile('^automatic analyze of table '), 'msg': 'automatic analyze of table' },
+  { 'pattern': re.compile('^automatic vacuum of table '),  'msg': 'automatic vacuum of table' },
+  { 'pattern': re.compile('^duration: '),                  'msg': 'slow query' },
+]
 
 class Aggregate(object):
-  blacklist = [ 'checkpoint complete', 'automatic analyze of table', 'automatic vacuum of table', 'slow query' ]
   def __init__(self, msg):
     self.msg = msg
     self.entries_by_ip = {}
 
   def add_entry(self, entry):
-    if (self.msg <> entry.msg):
-      if not ((self.msg in self.blacklist) or (self.msg.startswith('execute NUM') and entry.msg.startswith('execute '))):
-        raise ValueError("msg is not equal:\n%s\n%s" % (self.msg, entry.msg))
     if self.entries_by_ip.has_key(entry.ip):
       self.entries_by_ip[entry.ip].append(entry)
     else:
@@ -192,18 +194,13 @@ class Aggregate(object):
 
 def sanitize(entry):
   key = entry.msg
-  if entry.msg.startswith('checkpoint complete:'):
-    key = 'checkpoint complete'
-  if entry.msg.startswith('automatic analyze of table '):
-    key = 'automatic analyze of table'
-  if entry.msg.startswith('automatic vacuum of table '):
-    key = 'automatic vacuum of table'
-  if entry.msg.startswith('duration: '):
-    key = 'slow query'
   if entry.msg.startswith('execute '):
     # erase the context
     idx = entry.msg.find(':')
     key = 'execute NUM'+entry.msg[idx:]
+  for ptn in aggregate_patterns:
+    if ptn['pattern'].search(entry.msg):
+      key = ptn['msg']
   return key
 
 def aggregate(list_of_entries):
