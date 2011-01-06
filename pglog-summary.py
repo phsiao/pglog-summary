@@ -190,22 +190,26 @@ class Aggregate(object):
     str = "%10d\t%s" % (self.total(), self.msg)
     return str
 
+def sanitize(entry):
+  key = entry.msg
+  if entry.msg.startswith('checkpoint complete:'):
+    key = 'checkpoint complete'
+  if entry.msg.startswith('automatic analyze of table '):
+    key = 'automatic analyze of table'
+  if entry.msg.startswith('automatic vacuum of table '):
+    key = 'automatic vacuum of table'
+  if entry.msg.startswith('duration: '):
+    key = 'slow query'
+  if entry.msg.startswith('execute '):
+    # erase the context
+    idx = entry.msg.find(':')
+    key = 'execute NUM'+entry.msg[idx:]
+  return key
+
 def aggregate(list_of_entries):
    msgs = {}
    for entry in list_of_entries:
-     key = entry.msg
-     if entry.msg.startswith('checkpoint complete:'):
-       key = 'checkpoint complete'
-     if entry.msg.startswith('automatic analyze of table '):
-       key = 'automatic analyze of table'
-     if entry.msg.startswith('automatic vacuum of table '):
-       key = 'automatic vacuum of table'
-     if entry.msg.startswith('duration: '):
-       key = 'slow query'
-     if entry.msg.startswith('execute '):
-       # erase the context
-       idx = entry.msg.find(':')
-       key = 'execute NUM'+entry.msg[idx:]
+     key = sanitize(entry)
      if not msgs.has_key(key):
        msgs[key] = Aggregate(key)
      msgs[key].add_entry(entry)
