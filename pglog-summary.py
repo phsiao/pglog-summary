@@ -149,7 +149,8 @@ def process_log(options, args):
     output += "==================\n\n"
     for val in events:
       output += str(val)+"\n"
-      if val.total() >= options.error_threshold:
+      if val.total() >= options.error_threshold and \
+        not (options.suppress_dup_key and val.msg.startswith('duplicate key value violates unique constraint')):
         output = print_sample(output, val)
         rval += 1
 
@@ -234,6 +235,8 @@ def aggregate(list_of_entries):
 
 def main():
   parser = OptionParser()
+
+  # sample-showing threshold
   parser.add_option("-e", "--error-threshold", dest="error_threshold",
                     default=200,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 200)")
@@ -246,6 +249,12 @@ def main():
   parser.add_option("-l", "--log-threshold", dest="log_threshold",
                     default=1000000,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 1M)")
+
+  # ignore threshold options
+  parser.add_option("--suppress-dup-key",
+                    action="store_true", dest="suppress_dup_key", default=False,
+                    help="suppress duplicate key value violations from triggered events")
+  
   (options, args) = parser.parse_args()
   if len(args) == 0:
     print "missing input file name"
