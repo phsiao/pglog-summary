@@ -77,6 +77,8 @@ def get_entries(file):
       raw_entry.append(line)
 
 def process_log(options, args):
+  rval = 0
+  output = ''
   for file in args:
     log_events = []
     error_events = []
@@ -117,45 +119,61 @@ def process_log(options, args):
       else:
         unknown_events.append(entry)
 
+    def print_sample(out, agg):
+      out += "\t[Sample]\n"
+      for line in str(agg.get_sample()).split("\n"):
+        out += "\t\t"+line+"\n"
+      out += "\n"
+      return out
+
     events = aggregate(unknown_events)
-    print "\n=================="
-    print "unknown events"
-    print "==================\n"
+    output += "\n==================\n"
+    output += "unknown events\n"
+    output += "==================\n\n"
     for val in events:
-      print str(val)
+      output += str(val)+"\n"
 
     events = aggregate(fatal_events)
-    print "\n=================="
-    print "FATAL events"
-    print "==================\n"
+    output += "\n==================\n"
+    output += "FATAL events\n"
+    output += "==================\n\n"
     for val in events:
-      print str(val)
+      output += str(val)+"\n"
+      if val.total() >= options.fatal_threshold:
+        output = print_sample(output, val)
+        rval += 1
 
     events = aggregate(error_events)
-    print "\n=================="
-    print "ERROR events"
-    print "==================\n"
+    output += "\n==================\n"
+    output += "ERROR events\n"
+    output += "==================\n\n"
     for val in events:
-      print str(val)
-      if val.total() > 200:
-        print "\t[Sample]"
-        for line in str(val.get_sample()).split("\n"):
-          print "\t\t"+line
-        print ""
+      output += str(val)+"\n"
+      if val.total() >= options.error_threshold:
+        output = print_sample(output, val)
+        rval += 1
 
     events = aggregate(warn_events)
-    print "\n=================="
-    print "WARNING events"
-    print "==================\n"
+    output += "\n==================\n"
+    output += "WARNING events\n"
+    output += "==================\n\n"
     for val in events:
-      print str(val)
+      output += str(val)+"\n"
+      if val.total() >= options.warn_threshold:
+        output = print_sample(output, val)
+        rval += 1
 
     events = aggregate(log_events)
-    print "\n=================="
-    print "LOG events"
-    print "==================\n"
+    output += "\n==================\n"
+    output += "LOG events\n"
+    output += "==================\n\n"
     for val in events:
-      print str(val)
+      output += str(val)+"\n"
+      if val.total() >= options.log_threshold:
+        output = print_sample(output, val)
+        rval += 1
+
+    return rval, output
 
 aggregate_patterns = [
   { 'pattern': re.compile('^checkpoint complete:'),        'msg': 'checkpoint complete' },
@@ -216,12 +234,27 @@ def aggregate(list_of_entries):
 
 def main():
   parser = OptionParser()
+  parser.add_option("-e", "--error-threshold", dest="error_threshold",
+                    default=200,
+                    help="threshold of occurrences to start showing sample and return non-zero exit status (default 200)")
+  parser.add_option("-f", "--fatal-threshold", dest="fatal_threshold",
+                    default=1,
+                    help="threshold of occurrences to start showing sample and return non-zero exit status (default 1)")
+  parser.add_option("-w", "--warn-threshold", dest="warn_threshold",
+                    default=2000,
+                    help="threshold of occurrences to start showing sample and return non-zero exit status (default 2000)")
+  parser.add_option("-l", "--log-threshold", dest="log_threshold",
+                    default=1000000,
+                    help="threshold of occurrences to start showing sample and return non-zero exit status (default 1M)")
   (options, args) = parser.parse_args()
   if len(args) == 0:
     print "missing input file name"
     sys.exit(1)
   else:
-    process_log(options, args)
+    rval, output = process_log(options, args)
+    output = "".join(["\n%d event(s) exceed the threshold\n" % (rval), output])
+    print output
 
 if __name__ == "__main__":
   main()
+
