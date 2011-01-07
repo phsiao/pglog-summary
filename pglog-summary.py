@@ -219,17 +219,6 @@ def sanitize(entry):
       key = ptn['msg']
   return key
 
-def aggregate(list_of_entries):
-   msgs = {}
-   for entry in list_of_entries:
-     key = sanitize(entry)
-     if not msgs.has_key(key):
-       msgs[key] = Aggregate(key)
-     msgs[key].add_entry(entry)
-   events = [ m for m in msgs.values() ]
-   events.sort(lambda x,y: y.total()-x.total())
-   return events
-
 class LevelQueue(object):
   def __init__(self, name):
     self.name = name
