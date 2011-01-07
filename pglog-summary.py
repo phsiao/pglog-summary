@@ -23,6 +23,10 @@ class Entry(object):
     except AttributeError:
       pass
     try:
+      ret = '\n'.join([ret, str(self.hint)])
+    except AttributeError:
+      pass
+    try:
       ret = '\n'.join([ret, str(self.statement)])
     except AttributeError:
       pass
@@ -80,12 +84,11 @@ def process_log(options, args):
   rval = 0
   output = ''
   for file in args:
-    log_events = []
-    error_events = []
-    warn_events = []
-    hint_events = []
-    fatal_events = []
-    unknown_events = []
+    fatal_events = LevelQueue("FATAL")
+    error_events = LevelQueue("ERROR")
+    warn_events = LevelQueue("WARN")
+    log_events = LevelQueue("LOG")
+    unknown_events = LevelQueue("UNKNOWN")
 
     last_entry_by_ip = {}
     last_checkpoint_start = None
@@ -113,7 +116,7 @@ def process_log(options, args):
       elif type == 'DETAIL:':
         last_entry_by_ip[entry.ip].detail = entry
       elif type == 'HINT:':
-        hint_events.append(entry)
+        last_entry_by_ip[entry.ip].hint = entry
       elif type == 'FATAL:':
         fatal_events.append(entry)
       else:
@@ -126,14 +129,14 @@ def process_log(options, args):
       out += "\n"
       return out
 
-    events = aggregate(unknown_events)
+    events = unknown_events.get_events()
     output += "\n==================\n"
     output += "unknown events\n"
     output += "==================\n\n"
     for val in events:
       output += str(val)+"\n"
 
-    events = aggregate(fatal_events)
+    events = fatal_events.get_events()
     output += "\n==================\n"
     output += "FATAL events\n"
     output += "==================\n\n"
@@ -143,7 +146,7 @@ def process_log(options, args):
         output = print_sample(output, val)
         rval += 1
 
-    events = aggregate(error_events)
+    events = error_events.get_events()
     output += "\n==================\n"
     output += "ERROR events\n"
     output += "==================\n\n"
@@ -154,7 +157,7 @@ def process_log(options, args):
         output = print_sample(output, val)
         rval += 1
 
-    events = aggregate(warn_events)
+    events = warn_events.get_events()
     output += "\n==================\n"
     output += "WARNING events\n"
     output += "==================\n\n"
@@ -164,7 +167,7 @@ def process_log(options, args):
         output = print_sample(output, val)
         rval += 1
 
-    events = aggregate(log_events)
+    events = log_events.get_events()
     output += "\n==================\n"
     output += "LOG events\n"
     output += "==================\n\n"
@@ -233,21 +236,37 @@ def aggregate(list_of_entries):
    events.sort(lambda x,y: y.total()-x.total())
    return events
 
+class LevelQueue(object):
+  def __init__(self, name):
+    self.name = name
+    self.msgs = {}
+
+  def append(self, entry):
+    key = sanitize(entry)
+    if not self.msgs.has_key(key):
+       self.msgs[key] = Aggregate(key)
+    self.msgs[key].add_entry(entry)
+
+  def get_events(self):
+   events = [ m for m in self.msgs.values() ]
+   events.sort(lambda x,y: y.total()-x.total())
+   return events
+
 def main():
   parser = OptionParser()
 
   # sample-showing threshold
   parser.add_option("-e", "--error-threshold", dest="error_threshold",
-                    default=200,
+                    type="int", default=200,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 200)")
   parser.add_option("-f", "--fatal-threshold", dest="fatal_threshold",
-                    default=1,
+                    type="int", default=1,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 1)")
   parser.add_option("-w", "--warn-threshold", dest="warn_threshold",
-                    default=2000,
+                    type="int", default=2000,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 2000)")
   parser.add_option("-l", "--log-threshold", dest="log_threshold",
-                    default=1000000,
+                    type="int", default=1000000,
                     help="threshold of occurrences to start showing sample and return non-zero exit status (default 1M)")
 
   # ignore threshold options
