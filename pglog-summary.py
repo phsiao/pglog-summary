@@ -187,28 +187,22 @@ aggregate_patterns = [
 ]
 
 class Aggregate(object):
+  num_sample_entries = 1
   def __init__(self, msg):
     self.msg = msg
-    self.entries_by_ip = {}
+    self.sample_entries = []
+    self.cur_total = 0
 
   def add_entry(self, entry):
-    if self.entries_by_ip.has_key(entry.ip):
-      self.entries_by_ip[entry.ip].append(entry)
-    else:
-      self.entries_by_ip[entry.ip] = [entry]
+    if len(self.sample_entries) <= self.num_sample_entries:
+      self.sample_entries.append(entry)
+    self.cur_total += 1
 
   def total(self):
-    total = 0
-    for ip, entries in self.entries_by_ip.items():
-      total += len(entries)
-    return total
+    return self.cur_total
 
   def get_sample(self):
-    longest = []
-    for ip, entries in self.entries_by_ip.items():
-      if len(longest) < len(entries):
-        longest = entries
-    return entries[0]
+    return self.sample_entries[0]
 
   def __str__(self):
     str = "%10d\t%s" % (self.total(), self.msg)
