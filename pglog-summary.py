@@ -265,6 +265,7 @@ def main():
     rval, output = process_log(options, args)
     output = "".join(["\n%d event(s) exceed the threshold\n" % (rval), output])
     print output
+    sys.exit(rval)
 
 if __name__ == "__main__":
   main()
