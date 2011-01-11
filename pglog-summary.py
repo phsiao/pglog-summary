@@ -43,6 +43,11 @@ def is_entry_start(line):
   return entry_start_re.search(line)
 
 def parse_raw_entry(raw_entry):
+  """ Parses raw entry from the log file
+      Assume the logging is configured with
+
+      log_line_prefix = '%t %h %d '
+  """
   entry_start = raw_entry[0]
 
   # get the timestamp
