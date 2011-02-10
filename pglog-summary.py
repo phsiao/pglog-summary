@@ -4,6 +4,7 @@
 
 import sys
 import re
+import gzip
 from optparse import OptionParser
 
 entry_start_re = re.compile("^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
@@ -74,7 +75,10 @@ def parse_raw_entry(raw_entry):
   return Entry(ts, ip, db, type, msg)
   
 def get_entries(file):
-  fh = open(file)
+  if file.endswith('.gz'):
+    fh = gzip.open(file, "rb")
+  else:
+    fh = open(file)
   raw_entry = []
   for line in fh:
     if is_entry_start(line):
